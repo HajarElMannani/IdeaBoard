@@ -42,6 +42,13 @@ It lets project owners, startups, and product teams collect ideas from their use
 - **Frontend:** Use AI to scaffold **Jest + React Testing Library** tests for components, hooks, and page flows (submission, voting, commenting).
 - Include negative tests (unauthenticated, wrong role, invalid input) and property-based cases where meaningful.
 
+### 📝 Documentation
+- Use AI to draft and maintain **docstrings** (Google/NumPy style) for FastAPI routes, services, and utilities.
+- Generate **inline comments** for non-obvious logic (auth flows, RLS checks, caching/pagination).
+- Keep the **README** and setup guides current by prompting AI with the latest **file tree** and **diffs** from recent commits.
+- Auto-produce an **endpoint reference** from FastAPI’s OpenAPI; summarize changes per PR (AI-assisted commit messages/changelogs).
+- Enforce style via linters/formatters; **human review required** before merge.
+
 ### 📡 Schema‑Aware / API‑Aware Generation
 - Feed AI the **current database schema** (or migration diff) to produce accurate SQL/queries and DTOs.
 - Provide the **FastAPI OpenAPI spec** so AI can generate typed client calls (fetchers/hooks) and example requests.
