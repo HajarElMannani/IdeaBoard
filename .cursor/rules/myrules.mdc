@@ -1,0 +1,175 @@
+# IdeaBoard · myrules.mdc
+
+## Project
+- **Monorepo**
+  ```
+  /frontend   # Next.js (TypeScript, Tailwind v4)
+  /backend    # FastAPI (Python)
+  /docs/api   # OpenAPI spec (openapi.yaml)
+  /supabase   # SQL migrations (RLS, triggers)
+  ```
+- **Goal (MVP):** ideas (CRUD), votes (upsert), comments (CRUD), reports (create), basic moderation (hide). Clean RLS.
+
+---
+
+## Golden Rules
+1) **No secrets in client/prompts** (never expose Supabase service role key).  
+2) **Respect RLS**: All mutations must use the logged-in user’s JWT (aud=authenticated).  
+3) **Tailwind v4**: No `init -p`. Use `@tailwindcss/postcss` + `@import "tailwindcss";`.  
+4) **OpenAPI is the contract**: `docs/api/openapi.yaml` is source of truth for clients/tests.  
+5) **Minimal diffs**: Small, reviewable changes with rationale comments.
+
+---
+
+## Tech Conventions
+### Frontend (Next.js)
+- **CSS**: `postcss.config.js` ⇒ `{'@tailwindcss/postcss': {}, autoprefixer: {}}`; `src/app/globals.css` ⇒ `@import "tailwindcss";`
+- **Structure**
+  ```
+  src/app/**           # routes
+  src/components/**    # UI
+  src/lib/supabaseClient.ts
+  src/lib/api.ts       # generated client (orval/openapi-fetch)
+  src/types/**         # generated types from OpenAPI
+  ```
+- **Data**: React Query for server data, no SWR mix.  
+- **Validation**: zod on forms.  
+- **Accessibility**: labeled inputs, keyboard focus, no div-buttons.
+
+### Backend (FastAPI)
+- **Structure**
+  ```
+  app/main.py
+  app/api/v1/**        # routes
+  app/core/{config.py,auth.py}  # JWKS verify
+  app/models/**        # pydantic DTOs
+  app/tests/**         # pytest
+  ```
+- **Auth**: Verify Supabase JWT via JWKS (`SUPABASE_JWKS_URL`), `iss = ${SUPABASE_URL}/auth/v1`, `aud = authenticated`.
+
+### Database (Supabase/Postgres)
+- **Tables**: users, posts, comments, votes, reports.  
+- **RLS**:
+  - users: self read/insert/update; admin/mod read/update all
+  - posts/comments: read published or own; insert self; update self/admin
+  - votes: owner-only
+  - reports: owner read/insert; admin update
+- **Triggers**: keep `up_count/down_count` synced on votes.
+
+---
+
+## Allowed Actions (what the agent may generate)
+- Frontend pages/components/hooks in `/frontend/src/**`
+- Backend routes/DTOs/tests in `/backend/app/**`
+- API clients/types from `docs/api/openapi.yaml`
+- Jest/RTL and pytest tests
+- README/docstrings edits relevant to new code
+- Small refactors/lint fixes
+
+## Disallowed
+- Storing secrets in repo or prompts
+- Disabling RLS or loosening auth checks
+- Large-scale rewrites without explicit instruction
+- Introducing new frameworks not in stack
+
+---
+
+## Paths & Ownership
+- **Frontend:** `/frontend/src/app/**`, `/frontend/src/components/**`, `/frontend/src/lib/**`, `/frontend/src/types/**`
+- **Backend:** `/backend/app/api/v1/**`, `/backend/app/core/**`, `/backend/app/models/**`, `/backend/app/tests/**`
+- **Docs:** `/docs/api/openapi.yaml` (don’t move)
+- **DB:** `/supabase/migrations/**`
+
+---
+
+## Generation Playbooks
+
+### A) Feed page (list posts)
+**Spec:** `GET /api/v1/posts` (query: sort=new|top, page, page_size, status=published).  
+**Do:**
+- Generate TS types from OpenAPI.
+- Create React Query hook `usePosts(params)`.
+- Page shows New/Top tabs, loading, error, empty state.
+- Tailwind classes only; keep layout minimal.
+
+### B) New Idea page
+**Spec:** `POST /api/v1/posts` (title, body, tags[]).  
+**Do:**
+- Form with zod validation.
+- On submit, get session from Supabase, send `Authorization: Bearer <access_token>`.
+- On success, reset + navigate to `/`.
+- Handle 401/403 with inline error.
+
+### C) Vote upsert
+**Spec:** `POST /api/v1/votes` (post_id|comment_id, value: -1|1).  
+**Do:**
+- `VoteButton` component with optimistic UI.
+- Upsert semantics; on error, rollback and toast.
+
+### D) Comments
+**Spec:** `GET /api/v1/posts/{postId}/comments`, `POST /api/v1/posts/{postId}/comments`.  
+**Do:** List + create with auth; paginate older comments.
+
+### E) Reports
+**Spec:** `POST /api/v1/reports` (post_id|comment_id, reason).  
+**Do:** Modal + simple success/error state.
+
+---
+
+## Security Requirements
+- Every protected call attaches `Authorization: Bearer <supabase access token>`.
+- Backend validates: signature (JWKS), `iss`, `aud=authenticated`, token expiry.
+- Never include **service role key** outside server env.
+- Handle RLS denials (403) visibly; do not swallow errors.
+
+---
+
+## Review Checklist (Cursor must self-check)
+- [ ] Types generated from current `docs/api/openapi.yaml`  
+- [ ] No secrets in code or prompts  
+- [ ] Minimal diff; changed files listed  
+- [ ] Error/empty/loading states present  
+- [ ] Accessibility: labels, roles, keyboard focus  
+- [ ] Tests added/updated (pytest or RTL) where applicable
+
+---
+
+## Commit Style
+- Conventional commits: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`, `ci:`.
+- Keep messages short; reference OpenAPI paths when relevant.
+- Example: `feat(api): add GET /api/v1/posts hook with sort + pagination`
+
+---
+
+## Context to Always Include in Prompts
+- Relevant **OpenAPI excerpt** from `docs/api/openapi.yaml`
+- Target **file paths** and short file tree snippet
+- **Acceptance criteria** + error/empty states
+- **Auth requirement** (JWT) and any RLS caveats
+- Request **minimal diff** output
+
+---
+
+## Prompt Templates
+
+**1) Generate hook from spec**  
+> Use `docs/api/openapi.yaml` (path: `GET /api/v1/posts`) to create a typed React Query hook in `/frontend/src/lib/api.ts`. Include params {sort, page, page_size, status='published'}. Handle loading, error, and empty states in `/frontend/src/app/page.tsx`. Use Tailwind v4. Keep diff minimal.
+
+**2) New idea page**  
+> Implement `/frontend/src/app/new/page.tsx` with a form (zod validation). On submit, read Supabase session and call `POST /api/v1/posts` with Bearer token. After success, reset and navigate to `/`. Handle 401/403 visibly.
+
+**3) Vote button**  
+> Create `/frontend/src/components/VoteButton.tsx` and a helper in `/frontend/src/lib/api.ts` for `POST /api/v1/votes`. Optimistic UI (increment/decrement), rollback on error, toast message. Minimal diff.
+
+**4) Backend me route test**  
+> In `/backend/app/tests/test_me.py`, write pytest that hits `/api/v1/me` with: (a) valid token → 200; (b) missing token → 401; (c) wrong aud/iss → 401. Use JWKS mocking.
+
+**5) Reports endpoint**  
+> Add a modal in `/frontend/src/components/ReportDialog.tsx` and wire to `POST /api/v1/reports`. Validate reason length. Show success/error.
+
+---
+
+## Known Gotchas
+- Tailwind v4: No CLI init; ensure `postcss.config.js` exists and `globals.css` imports Tailwind.
+- Supabase RLS: Inserts must use `author_id = auth.uid()` (server-side enforced); ensure frontend is authenticated.
+- OpenAPI drift: If backend changes, update `docs/api/openapi.yaml` and regenerate types/hooks.

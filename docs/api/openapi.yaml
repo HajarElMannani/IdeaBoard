@@ -1,0 +1,421 @@
+openapi: 3.1.0
+info:
+  title: IdeaBoard API
+  version: 0.1.0
+  description: >
+    FastAPI façade for IdeaBoard. Auth is Supabase JWT (Bearer).
+    RLS still protects data at the DB level; these endpoints are a thin layer.
+
+servers:
+  - url: http://localhost:8000
+
+tags:
+  - name: system
+  - name: auth
+  - name: posts
+  - name: comments
+  - name: votes
+  - name: reports
+  - name: admin
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    CommentId:
+      name: commentId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: page_size
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Sort:
+      name: sort
+      in: query
+      schema:
+        type: string
+        enum: [new, top]
+        default: new
+    Status:
+      name: status
+      in: query
+      schema:
+        type: string
+        enum: [published, hidden, deleted]
+        default: published
+    Tag:
+      name: tag
+      in: query
+      schema:
+        type: string
+
+  schemas:
+    Role:
+      type: string
+      enum: [user, mod, admin]
+
+    Status:
+      type: string
+      enum: [published, hidden, deleted]
+
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        role: { $ref: '#/components/schemas/Role' }
+        created_at: { type: string, format: date-time }
+      required: [id, role]
+
+    Me:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/Role' }
+      required: [id, role]
+
+    PostCreate:
+      type: object
+      properties:
+        title: { type: string, minLength: 3, maxLength: 160 }
+        body: { type: string, minLength: 3, maxLength: 10000 }
+        tags:
+          type: array
+          items: { type: string }
+      required: [title, body]
+    PostUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        body: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        status: { $ref: '#/components/schemas/Status' }
+    Post:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        author_id: { type: string, format: uuid }
+        title: { type: string }
+        body: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        status: { $ref: '#/components/schemas/Status' }
+        up_count: { type: integer }
+        down_count: { type: integer }
+        created_at: { type: string, format: date-time }
+      required: [id, author_id, title, body, status, up_count, down_count, created_at]
+
+    CommentCreate:
+      type: object
+      properties:
+        body: { type: string, minLength: 1, maxLength: 5000 }
+      required: [body]
+    CommentUpdate:
+      type: object
+      properties:
+        body: { type: string }
+        status: { $ref: '#/components/schemas/Status' }
+    Comment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        post_id: { type: string, format: uuid }
+        author_id: { type: string, format: uuid }
+        body: { type: string }
+        status: { $ref: '#/components/schemas/Status' }
+        up_count: { type: integer }
+        down_count: { type: integer }
+        created_at: { type: string, format: date-time }
+      required: [id, post_id, author_id, body, status, up_count, down_count, created_at]
+
+    VoteUpsert:
+      type: object
+      properties:
+        post_id: { type: string, format: uuid, nullable: true }
+        comment_id: { type: string, format: uuid, nullable: true }
+        value: { type: integer, enum: [-1, 1] }
+      required: [value]
+      description: "Exactly one of post_id or comment_id must be set."
+
+    ReportCreate:
+      type: object
+      properties:
+        post_id: { type: string, format: uuid, nullable: true }
+        comment_id: { type: string, format: uuid, nullable: true }
+        reason: { type: string, minLength: 3, maxLength: 2000 }
+      required: [reason]
+      description: "Exactly one of post_id or comment_id must be set."
+
+    PaginatedPosts:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Post' }
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+      required: [items, page, page_size, total]
+
+    PaginatedComments:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Comment' }
+        page: { type: integer }
+        page_size: { type: integer }
+        total: { type: integer }
+      required: [items, page, page_size, total]
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [system]
+      operationId: health
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { status: { type: string } }, required: [status] }
+
+  /api/v1/me:
+    get:
+      tags: [auth]
+      operationId: me
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Current user (from Supabase JWT)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401':
+          description: Unauthorized
+
+  /api/v1/posts:
+    get:
+      tags: [posts]
+      operationId: listPosts
+      parameters:
+        - $ref: '#/components/parameters/Sort'
+        - $ref: '#/components/parameters/Status'
+        - $ref: '#/components/parameters/Tag'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Paginated posts
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedPosts' }
+    post:
+      tags: [posts]
+      operationId: createPost
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (RLS) }
+
+  /api/v1/posts/{postId}:
+    get:
+      tags: [posts]
+      operationId: getPost
+      parameters: [ { $ref: '#/components/parameters/PostId' } ]
+      responses:
+        '200':
+          description: Post
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '404': { description: Not found }
+    patch:
+      tags: [posts]
+      operationId: updatePost
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/PostId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PostUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Post' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (RLS) }
+        '404': { description: Not found }
+    delete:
+      tags: [posts]
+      operationId: deletePost
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/PostId' } ]
+      responses:
+        '204': { description: Deleted }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (RLS) }
+        '404': { description: Not found }
+
+  /api/v1/posts/{postId}/comments:
+    get:
+      tags: [comments]
+      operationId: listComments
+      parameters:
+        - { $ref: '#/components/parameters/PostId' }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: Paginated comments
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PaginatedComments' }
+    post:
+      tags: [comments]
+      operationId: createComment
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/PostId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentCreate' }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (RLS) }
+
+  /api/v1/comments/{commentId}:
+    patch:
+      tags: [comments]
+      operationId: updateComment
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/CommentId' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CommentUpdate' }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comment' }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (RLS) }
+        '404': { description: Not found }
+    delete:
+      tags: [comments]
+      operationId: deleteComment
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/CommentId' } ]
+      responses:
+        '204': { description: Deleted }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (RLS) }
+        '404': { description: Not found }
+
+  /api/v1/votes:
+    post:
+      tags: [votes]
+      operationId: upsertVote
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VoteUpsert' }
+      responses:
+        '204': { description: Upserted }
+        '400': { description: Bad Request (missing target) }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (RLS) }
+    delete:
+      tags: [votes]
+      operationId: deleteVote
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: post_id
+          in: query
+          schema: { type: string, format: uuid, nullable: true }
+        - name: comment_id
+          in: query
+          schema: { type: string, format: uuid, nullable: true }
+      responses:
+        '204': { description: Deleted }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (RLS) }
+
+  /api/v1/reports:
+    post:
+      tags: [reports]
+      operationId: createReport
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReportCreate' }
+      responses:
+        '204': { description: Created }
+        '400': { description: Bad Request }
+        '401': { description: Unauthorized }
+
+  /api/v1/admin/posts/{postId}/hide:
+    post:
+      tags: [admin]
+      operationId: hidePost
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/PostId' } ]
+      responses:
+        '204': { description: Hidden }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (requires admin/mod) }
+
+  /api/v1/admin/comments/{commentId}/hide:
+    post:
+      tags: [admin]
+      operationId: hideComment
+      security: [{ bearerAuth: [] }]
+      parameters: [ { $ref: '#/components/parameters/CommentId' } ]
+      responses:
+        '204': { description: Hidden }
+        '401': { description: Unauthorized }
+        '403': { description: Forbidden (requires admin/mod) }
