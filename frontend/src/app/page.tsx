@@ -157,7 +157,6 @@ export default function Page() {
           Next
         </Button>
       </div>
-      <div className="p-6 bg-red-500 text-white">tailwind?</div>
       <ReportDialog
         open={Boolean(reportPostId)}
         postId={reportPostId}

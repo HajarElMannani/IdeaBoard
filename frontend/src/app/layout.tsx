@@ -35,6 +35,8 @@ export default function RootLayout({
               <nav className="flex items-center gap-6">
                 <Link href="/" className="text-sm text-gray-700 hover:underline focus:outline-none focus:ring-2 focus:ring-black">Home</Link>
                 <Link href="/new" className="text-sm text-gray-700 hover:underline focus:outline-none focus:ring-2 focus:ring-black">New</Link>
+                <Link href="/auth" className="text-sm text-gray-700 hover:underline focus:outline-none focus:ring-2 focus:ring-black">Sign in</Link>
+                <Link href="/auth?view=sign_up" className="text-sm text-gray-700 hover:underline focus:outline-none focus:ring-2 focus:ring-black">Register</Link>
                 <WhoAmI />
               </nav>
             </div>

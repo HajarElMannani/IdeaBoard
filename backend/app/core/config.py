@@ -6,6 +6,8 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_JWKS_URL: str
     SUPABASE_ISSUER: str
+    # Optional but recommended for public REST reads without Authorization
+    SUPABASE_ANON_KEY: str | None = None
 
     # Comma-separated list of allowed origins for production
     ALLOWED_ORIGINS: str = "http://localhost:3000"
