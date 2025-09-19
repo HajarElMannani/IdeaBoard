@@ -31,14 +31,15 @@ async def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)
     if not key:
         raise HTTPException(status_code=401, detail="Invalid key id")
     try:
-        payload = jwt.decode(
+        claims = jwt.decode(
             token,
             key,
             algorithms=[header.get("alg", "RS256")],
             audience="authenticated",
             issuer=settings.SUPABASE_ISSUER,
         )
-        # payload contains sub (uuid), email, etc.
-        return payload
+        # Return both verified claims and the raw access token so we can
+        # forward it to Supabase REST where RLS policies apply.
+        return {"claims": claims, "token": token}
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
