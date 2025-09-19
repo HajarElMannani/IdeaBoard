@@ -1,30 +1,59 @@
 "use client";
-import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabaseClient";
+import { useState } from "react";
+import { usePosts } from "@/lib/hooks/usePosts";
+import VoteButton from "@/components/VoteButton";
 
 export default function Page() {
-  const [posts, setPosts] = useState<any[]>([]);
-  useEffect(() => {
-    supabase.from("posts")
-      .select("*")
-      .eq("status", "published")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) console.error(error);
-        else setPosts(data ?? []);
-      });
-  }, []);
+  const [sort, setSort] = useState<"new" | "top">("new");
+  const { data, isLoading, error } = usePosts({ sort, page: 1, page_size: 20, status: "published" });
+
+  const items = data?.items ?? [];
+
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-bold">Ideas (New)</h1>
-      <ul className="space-y-2">
-        {posts.map(p => (
-          <li key={p.id} className="rounded border p-3">
-            <div className="font-semibold">{p.title}</div>
-            <div className="text-sm text-gray-600">{p.body}</div>
-          </li>
-        ))}
-      </ul>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Ideas ({sort === "new" ? "New" : "Top"})</h1>
+        <div className="inline-flex rounded border overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setSort("new")}
+            className={`px-3 py-1 text-sm ${sort === "new" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}
+          >
+            New
+          </button>
+          <button
+            type="button"
+            onClick={() => setSort("top")}
+            className={`px-3 py-1 text-sm border-l ${sort === "top" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}
+          >
+            Top
+          </button>
+        </div>
+      </div>
+
+      {isLoading && (
+        <div className="text-sm text-gray-600">Loading…</div>
+      )}
+      {error && (
+        <div className="text-sm text-red-600">Failed to load posts.</div>
+      )}
+      {!isLoading && !error && items.length === 0 && (
+        <div className="text-sm text-gray-600">No posts yet.</div>
+      )}
+
+      {!isLoading && !error && items.length > 0 && (
+        <ul className="space-y-2">
+          {items.map(p => (
+            <li key={p.id} className="rounded border p-3">
+              <div className="font-semibold">{p.title}</div>
+              <div className="text-sm text-gray-600">{p.body}</div>
+              <div className="mt-2">
+                <VoteButton post={p} />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }
