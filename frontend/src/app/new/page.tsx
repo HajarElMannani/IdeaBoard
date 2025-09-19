@@ -61,8 +61,9 @@ export default function NewIdea() {
         </div>
         <div>
           <input className="w-full rounded border p-2" placeholder="Tags (comma separated, optional)" {...register("tags", {
-            setValueAs: (v: string) => {
-              if (!v) return [] as string[];
+            setValueAs: (v: unknown) => {
+              if (Array.isArray(v)) return v as string[];
+              if (typeof v !== "string" || v.length === 0) return [] as string[];
               return v.split(",").map((s: string) => s.trim()).filter(Boolean);
             }
           })} />
