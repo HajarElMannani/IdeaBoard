@@ -31,8 +31,8 @@ export function useVote() {
         headers,
       });
       if (error) {
-        const err: any = new Error("Vote failed");
-        (err.response = response);
+        const err = new Error("Vote failed");
+        (err as unknown as { response?: Response }).response = response as unknown as Response;
         throw err;
       }
       return { postId, value } as VoteArgs;
@@ -48,13 +48,13 @@ export function useVote() {
       }
       return { snapshots } as { snapshots: { key: unknown; data: PaginatedPosts | undefined }[] };
     },
-    onError: (error: any, _vars, context) => {
+    onError: (error: unknown, _vars, context) => {
       // rollback
-      const snapshots = (context as any)?.snapshots as { key: unknown; data: PaginatedPosts | undefined }[] | undefined;
+      const snapshots = (context as { snapshots?: { key: unknown; data: PaginatedPosts | undefined }[] } | undefined)?.snapshots;
       if (snapshots) {
         snapshots.forEach(({ key, data }) => queryClient.setQueryData(key, data));
       }
-      const status = error?.response?.status;
+      const status = (error as { response?: { status?: number } } | null)?.response?.status;
       if (status === 401) alert("Please sign in to vote.");
       else if (status === 403) alert("You do not have permission to vote.");
       else alert("Failed to register vote.");

@@ -25,14 +25,14 @@ export default function PostDetailPage() {
   const addComment = useAddComment(postId);
   const [commentBody, setCommentBody] = useState("");
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!commentBody.trim()) return;
     try {
       await addComment.mutateAsync({ body: commentBody.trim() });
       setCommentBody("");
-    } catch (err: any) {
-      const status = (err as any)?.response?.status;
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } } | null)?.response?.status;
       if (status === 401) alert("Please sign in to comment.");
       else if (status === 403) alert("You do not have permission to comment.");
       else alert("Failed to add comment.");

@@ -5,6 +5,8 @@ import { useForm } from "react-hook-form";
 import { client } from "@/lib/apiClient";
 import { withAuthHeaders } from "@/lib/apiClient";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { requireAuthClientSide } from "@/lib/auth";
 
 const schema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -16,6 +18,7 @@ type Form = z.infer<typeof schema>;
 
 export default function NewIdea() {
   const router = useRouter();
+  useEffect(() => { requireAuthClientSide(); }, []);
   const { register, handleSubmit, reset, setError, formState: { errors, isSubmitting } } = useForm<Form>({
     resolver: zodResolver(schema),
     defaultValues: { title: "", body: "", tags: [] },
@@ -24,7 +27,7 @@ export default function NewIdea() {
   const onSubmit = async (data: Form) => {
     try {
       const headers = await withAuthHeaders();
-      const { data: resp, error, response } = await client.POST("/api/v1/posts", {
+      const { error, response } = await client.POST("/api/v1/posts", {
         body: { title: data.title, body: data.body, tags: data.tags && data.tags.length ? data.tags : undefined },
         headers,
       });
@@ -38,8 +41,9 @@ export default function NewIdea() {
       }
       reset();
       router.push("/");
-    } catch (e: any) {
-      setError("root", { message: e?.message ?? "Something went wrong." });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Something went wrong.";
+      setError("root", { message });
     }
   };
 

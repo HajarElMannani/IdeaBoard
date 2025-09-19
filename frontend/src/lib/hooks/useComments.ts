@@ -29,8 +29,8 @@ export function useAddComment(postId: string) {
         headers,
       });
       if (error) {
-        const err: any = new Error("Failed to add comment");
-        (err.response = response);
+        const err = new Error("Failed to add comment");
+        (err as unknown as { response?: Response }).response = response as unknown as Response;
         throw err;
       }
       return data;
