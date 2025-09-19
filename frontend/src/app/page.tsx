@@ -3,6 +3,7 @@ import { useState } from "react";
 import { usePosts } from "@/lib/hooks/usePosts";
 import VoteButton from "@/components/VoteButton";
 import ReportDialog from "@/components/ReportDialog";
+import WhoAmI from "@/components/WhoAmI";
 
 export default function Page() {
   const [sort, setSort] = useState<"new" | "top">("new");
@@ -15,21 +16,24 @@ export default function Page() {
     <section className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Ideas ({sort === "new" ? "New" : "Top"})</h1>
-        <div className="inline-flex rounded border overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setSort("new")}
-            className={`px-3 py-1 text-sm ${sort === "new" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}
-          >
-            New
-          </button>
-          <button
-            type="button"
-            onClick={() => setSort("top")}
-            className={`px-3 py-1 text-sm border-l ${sort === "top" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}
-          >
-            Top
-          </button>
+        <div className="flex items-center gap-3">
+          <WhoAmI />
+          <div className="inline-flex rounded border overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setSort("new")}
+              className={`px-3 py-1 text-sm ${sort === "new" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}
+            >
+              New
+            </button>
+            <button
+              type="button"
+              onClick={() => setSort("top")}
+              className={`px-3 py-1 text-sm border-l ${sort === "top" ? "bg-gray-900 text-white" : "bg-white text-gray-700"}`}
+            >
+              Top
+            </button>
+          </div>
         </div>
       </div>
 
