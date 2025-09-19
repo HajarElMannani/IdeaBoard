@@ -2,9 +2,11 @@
 import { useState } from "react";
 import { usePosts } from "@/lib/hooks/usePosts";
 import VoteButton from "@/components/VoteButton";
+import ReportDialog from "@/components/ReportDialog";
 
 export default function Page() {
   const [sort, setSort] = useState<"new" | "top">("new");
+  const [reportPostId, setReportPostId] = useState<string | null>(null);
   const { data, isLoading, error } = usePosts({ sort, page: 1, page_size: 20, status: "published" });
 
   const items = data?.items ?? [];
@@ -50,10 +52,25 @@ export default function Page() {
               <div className="mt-2">
                 <VoteButton post={p} />
               </div>
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={() => setReportPostId(p.id)}
+                  className="text-xs text-gray-600 underline"
+                >
+                  Report
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
+
+      <ReportDialog
+        open={Boolean(reportPostId)}
+        postId={reportPostId}
+        onClose={() => setReportPostId(null)}
+      />
     </section>
   );
 }
