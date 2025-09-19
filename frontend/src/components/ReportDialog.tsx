@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { client, withAuthHeaders } from "@/lib/apiClient";
+import { Button, Modal, Textarea } from "@/components/UI";
 
 type Props = {
   open: boolean;
@@ -47,37 +48,28 @@ export default function ReportDialog({ open, postId, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-full max-w-md rounded bg-white p-4 shadow">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Report post</h2>
-          <button onClick={onClose} className="text-sm text-gray-600">Close</button>
-        </div>
-        <form onSubmit={submit} className="space-y-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium">Reason</label>
-            <textarea
-              className="w-full rounded border p-2"
-              rows={5}
-              placeholder="Describe the issue"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-            {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
-          </div>
-          <div className="flex items-center justify-end gap-2">
-            <button type="button" onClick={onClose} className="rounded border px-3 py-1 text-sm">Cancel</button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="rounded bg-black px-4 py-2 text-white text-sm disabled:opacity-50"
-            >
-              {isSubmitting ? "Submitting…" : "Submit"}
-            </button>
-          </div>
-        </form>
+    <Modal>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Report post</h2>
+        <button onClick={onClose} className="text-sm text-gray-600">Close</button>
       </div>
-    </div>
+      <form onSubmit={submit} className="space-y-3">
+        <div>
+          <label className="mb-1 block text-sm font-medium">Reason</label>
+          <Textarea
+            rows={5}
+            placeholder="Describe the issue"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          {error && <p className="mt-1 text-sm text-red-600">{error}</p>}
+        </div>
+        <div className="flex items-center justify-end gap-2">
+          <Button type="button" onClick={onClose} className="text-sm">Cancel</Button>
+          <Button type="submit" disabled={isSubmitting} className="text-sm">{isSubmitting ? "Submitting…" : "Submit"}</Button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

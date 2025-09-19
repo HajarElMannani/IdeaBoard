@@ -7,6 +7,7 @@ import { withAuthHeaders } from "@/lib/apiClient";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { requireAuthClientSide } from "@/lib/auth";
+import { Button, Card, Input, Textarea, Badge } from "@/components/UI";
 
 const schema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
@@ -48,29 +49,37 @@ export default function NewIdea() {
   };
 
   return (
-    <div className="space-y-4 max-w-xl mx-auto">
-      <h1 className="text-xl font-semibold">Submit a new idea</h1>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-        <div>
-          <input className="w-full rounded border p-2" placeholder="Title" {...register("title")} />
-          {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
-        </div>
-        <div>
-          <textarea className="w-full rounded border p-2" rows={6} placeholder="Describe your idea" {...register("body")}/>
-          {errors.body && <p className="mt-1 text-sm text-red-600">{errors.body.message}</p>}
-        </div>
-        <div>
-          <input className="w-full rounded border p-2" placeholder="Tags (comma separated, optional)" {...register("tags", {
-            setValueAs: (v: unknown) => {
-              if (Array.isArray(v)) return v as string[];
-              if (typeof v !== "string" || v.length === 0) return [] as string[];
-              return v.split(",").map((s: string) => s.trim()).filter(Boolean);
-            }
-          })} />
-        </div>
-        {errors.root && <div className="text-sm text-red-600">{errors.root.message}</div>}
-        <button disabled={isSubmitting} className="rounded bg-black px-4 py-2 text-white disabled:opacity-50">{isSubmitting ? "Posting..." : "Post"}</button>
-      </form>
+    <div className="max-w-2xl mx-auto space-y-4">
+      <h1 className="text-2xl font-bold">Submit a new idea</h1>
+      <Card>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <label className="mb-1 block text-sm font-medium">Title</label>
+            <Input placeholder="Concise and descriptive" {...register("title")} />
+            {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title.message}</p>}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Description</label>
+            <Textarea rows={6} placeholder="Describe your idea and why it matters" {...register("body")} />
+            {errors.body && <p className="mt-1 text-sm text-red-600">{errors.body.message}</p>}
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Tags</label>
+            <Input placeholder="comma-separated, e.g. ui, performance" {...register("tags", {
+              setValueAs: (v: unknown) => {
+                if (Array.isArray(v)) return v as string[];
+                if (typeof v !== "string" || v.length === 0) return [] as string[];
+                return v.split(",").map((s: string) => s.trim()).filter(Boolean);
+              }
+            })} />
+            <p className="mt-1 text-xs text-gray-600">Press comma to add. Optional.</p>
+          </div>
+          {errors.root && <div className="rounded border border-red-200 bg-red-50 p-2 text-sm text-red-700">{errors.root.message}</div>}
+          <div className="flex items-center justify-end">
+            <Button disabled={isSubmitting}>{isSubmitting ? "Posting…" : "Post idea"}</Button>
+          </div>
+        </form>
+      </Card>
     </div>
   );
 }

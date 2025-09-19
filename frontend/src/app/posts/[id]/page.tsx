@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { client } from "@/lib/apiClient";
 import { useComments, useAddComment } from "@/lib/hooks/useComments";
+import { Button, Card, Textarea } from "@/components/UI";
 
 export default function PostDetailPage() {
   const params = useParams<{ id: string }>();
@@ -40,67 +41,68 @@ export default function PostDetailPage() {
   };
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto p-4">
-      {postLoading && <div className="text-sm text-gray-600">Loading post…</div>}
-      {postError && <div className="text-sm text-red-600">Failed to load post.</div>}
+    <div className="max-w-2xl mx-auto space-y-6">
+      {postLoading && (
+        <Card>
+          <div className="animate-pulse space-y-2">
+            <div className="h-5 w-1/3 bg-gray-200 rounded" />
+            <div className="h-3 w-full bg-gray-200 rounded" />
+            <div className="h-3 w-5/6 bg-gray-200 rounded" />
+          </div>
+        </Card>
+      )}
+      {postError && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">Failed to load post.</div>}
       {post && (
-        <article className="rounded border p-4">
+        <Card>
           <h1 className="text-2xl font-bold">{post.title}</h1>
-          <p className="mt-2 text-gray-700">{post.body}</p>
-        </article>
+          <p className="mt-2 text-gray-700 whitespace-pre-wrap">{post.body}</p>
+        </Card>
       )}
 
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Comments</h2>
-        {commentsLoading && <div className="text-sm text-gray-600">Loading comments…</div>}
-        {commentsError && <div className="text-sm text-red-600">Failed to load comments.</div>}
+        {commentsLoading && (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i}><div className="h-4 bg-gray-200 rounded" /></Card>
+            ))}
+          </div>
+        )}
+        {commentsError && <div className="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-700">Failed to load comments.</div>}
         {!commentsLoading && !commentsError && (commentsData?.items?.length ?? 0) === 0 && (
-          <div className="text-sm text-gray-600">No comments yet.</div>
+          <Card><div className="text-sm text-gray-600">No comments yet.</div></Card>
         )}
         {!commentsLoading && !commentsError && (commentsData?.items?.length ?? 0) > 0 && (
           <ul className="space-y-2">
             {commentsData!.items.map(c => (
-              <li key={c.id} className="rounded border p-3">
-                <div className="text-sm text-gray-800">{c.body}</div>
+              <li key={c.id}>
+                <Card>
+                  <div className="text-sm text-gray-800 whitespace-pre-wrap">{c.body}</div>
+                </Card>
               </li>
             ))}
           </ul>
         )}
 
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-sm disabled:opacity-50"
-            onClick={() => setPage(p => Math.max(1, p - 1))}
-            disabled={page <= 1}
-          >
-            Prev
-          </button>
+          <Button type="button" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}>Prev</Button>
           <span className="text-sm">Page {page}</span>
-          <button
-            type="button"
-            className="rounded border px-2 py-1 text-sm"
-            onClick={() => setPage(p => p + 1)}
-          >
-            Next
-          </button>
+          <Button type="button" onClick={() => setPage(p => p + 1)}>Next</Button>
         </div>
 
-        <form onSubmit={onSubmit} className="space-y-2">
-          <textarea
-            className="w-full rounded border p-2"
-            rows={4}
-            placeholder="Write a comment"
-            value={commentBody}
-            onChange={(e) => setCommentBody(e.target.value)}
-          />
-          <button
-            className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
-            disabled={addComment.isPending}
-          >
-            {addComment.isPending ? "Posting…" : "Post Comment"}
-          </button>
-        </form>
+        <Card>
+          <form onSubmit={onSubmit} className="space-y-2">
+            <Textarea
+              rows={4}
+              placeholder="Write a comment"
+              value={commentBody}
+              onChange={(e) => setCommentBody(e.target.value)}
+            />
+            <div className="flex items-center justify-end">
+              <Button disabled={addComment.isPending}>{addComment.isPending ? "Posting…" : "Post Comment"}</Button>
+            </div>
+          </form>
+        </Card>
       </section>
     </div>
   );

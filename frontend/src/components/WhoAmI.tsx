@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { client, withAuthHeaders } from "@/lib/apiClient";
+import { Button } from "@/components/UI";
 
 type MeResponse = {
   email?: string;
@@ -36,14 +37,9 @@ export default function WhoAmI() {
 
   return (
     <div className="inline-flex items-center gap-2">
-      <button
-        type="button"
-        onClick={fetchMe}
-        className="px-2 py-1 text-sm border rounded"
-        disabled={loading}
-      >
+      <Button size="sm" onClick={fetchMe} disabled={loading}>
         {loading ? "Loading…" : "Who am I?"}
-      </button>
+      </Button>
       {error && <span className="text-sm text-gray-600">{error}</span>}
       {result && (
         <span className="text-sm text-gray-800">

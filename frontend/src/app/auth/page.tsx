@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { useEffect } from "react";
+import { Card } from "@/components/UI";
 
 export default function AuthPage() {
   useEffect(() => {
@@ -17,13 +18,17 @@ export default function AuthPage() {
   }, []);
 
   return (
-    <div className="max-w-md mx-auto p-6">
-      <Auth
-        supabaseClient={supabase}
-        appearance={{ theme: ThemeSupa }}
-        providers={[]}
-        redirectTo={process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}
-      />
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <div className="w-full max-w-md">
+        <Card>
+        <Auth
+          supabaseClient={supabase}
+          appearance={{ theme: ThemeSupa }}
+          providers={[]}
+          redirectTo={process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}
+        />
+        </Card>
+      </div>
     </div>
   );
 }
