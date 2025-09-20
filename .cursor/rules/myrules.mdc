@@ -1,178 +1,31 @@
-description: Core rules, conventions, and architectural guidelines for the IdeaBoard project (community feedback & idea voting).
-globs:
+Acceptance Criteria (MVP)
 
-"**/*"
-alwaysApply: true
-Project Overview: IdeaBoard (Feedback & Voting)
+Auth: users can sign up, log in, and stay signed in (session persists).
 
-You are an expert full-stack developer working on the IdeaBoard codebase. The goal is to ship a clean MVP where users can submit ideas, vote (up/down), comment, and report content; admins can moderate. You must follow these rules to keep the stack secure, consistent, and maintainable.
+Create Idea: authenticated user can create an idea; it appears in New list.
 
-Technology Stack (Do not add new libs without explicit instruction)
+Edit Idea: creator can edit their idea; others cannot (enforced by RLS).
 
-Language: TypeScript (frontend), Python (backend)
+Ideas Feed: lists published ideas with New/Top sorting and pagination; shows counts.
 
-Frontend: Next.js (App Router), React, Tailwind CSS v4 (no CLI init), minimal local UI kit (no extra UI libraries)
+Voting: authenticated users can upvote/downvote; UI updates; duplicate votes are prevented by DB.
 
-State/Data: React Query for server data; local state with useState/useReducer only
+Comments: authenticated users can add comments; list shows newest first.
 
-Backend: FastAPI (Python) as a thin façade over Supabase REST
+Report: users can submit a report with a reason for any idea or comment.
 
-Database & Auth: Supabase (Postgres + RLS, Auth JWT)
+Profile: shows user info
 
-API Client: openapi-fetch typed by docs/api/openapi.yaml
+Home: intro page with clear CTA to auth and explore ideas.
 
-Spec Source of Truth: docs/api/openapi.yaml (OpenAPI 3.1)
+No backend server running; all data flows use Supabase JS client.
 
-Deployment: Vercel (frontend), Render (backend), Supabase (DB/Auth)
+11) Testing (minimum)
 
-Architecture & Directories
+Auth page: shows errors on bad credentials; reflects logged-in state.
 
-Monorepo:
+New Idea flow: validates required fields; inserts on success; navigates to feed.
 
-/frontend – Next.js app
+Vote flow: optimistic update and rollback on error.
 
-/src/app – routes/pages (App Router)
-
-/src/components – reusable UI (e.g. UI.tsx, VoteButton.tsx, ReportDialog.tsx)
-
-/src/lib – supabaseClient.ts, apiClient.ts, React Query hooks
-
-/src/types – generated API types from OpenAPI
-
-/backend – FastAPI app
-
-/app/api/v1 – route modules (posts.py, comments.py, votes.py, reports.py)
-
-/app/core – auth.py (JWKS verify), config.py, supa.py (REST helpers)
-
-/app/tests – pytest
-
-/docs/api – openapi.yaml (single source of truth)
-
-/supabase – SQL/migrations (schema, RLS, triggers)
-
-Pages expected:
-
-/ feed (New/Top)
-
-/new submit idea (auth)
-
-/posts/[id] detail + comments
-
-/auth sign-in/up (email/password)
-
-Styling & UI
-
-Tailwind v4 only: postcss.config.js with @tailwindcss/postcss; globals.css uses @import "tailwindcss";
-
-Build a tiny UI kit in src/components/UI.tsx (Button, Input, Textarea, Badge, Card, Modal)
-
-Layout: centered column (max-w-4xl mx-auto px-4), clear hierarchy, accessible focus styles
-
-Provide loading skeletons, empty states, and inline error banners for all data pages
-
-Data & API Rules
-
-All API calls are derived from docs/api/openapi.yaml. Do not invent paths.
-
-Use openapi-fetch with types from frontend/src/types/ideaboard-api.d.ts.
-
-Create a single apiClient.ts that:
-
-sets baseUrl from NEXT_PUBLIC_API_BASE_URL
-
-exports withAuthHeaders() that attaches Authorization: Bearer <access_token> retrieved from Supabase
-
-Use React Query for fetching/caching (useQuery, useMutation); no SWR.
-
-For protected endpoints (POST/DELETE/PATCH and /me), always include bearer token via withAuthHeaders().
-
-Auth & Security
-
-Supabase JWT verification happens in the backend (JWKS). Backend forwards to Supabase REST with the same user token so RLS enforces permissions.
-
-Never expose the Supabase service role key in frontend code, prompts, or logs.
-
-Respect RLS: inserts/updates must use the logged-in user’s identity (auth.uid() on DB side).
-
-CORS: backend must honor ALLOWED_ORIGINS env; frontend calls must target NEXT_PUBLIC_API_BASE_URL.
-
-Naming & Conventions
-
-Components: PascalCase (IdeaCard.tsx, VoteButton.tsx)
-
-Hooks & utils: camelCase (usePosts.ts, withAuthHeaders())
-
-Keep files small and focused; co-locate hooks in /src/lib/hooks/
-
-No any in public types; use generated OpenAPI types wherever possible
-
-Error Handling & UX
-
-Every data page must implement: loading skeletons, empty state, error banner (no console-only errors)
-
-Mutations show pending state; disable submit buttons while pending
-
-Voting uses optimistic updates with rollback on failure
-
-Modals must be keyboard accessible (trap focus, Escape to close)
-
-Environment & Secrets
-
-Frontend .env.local must set:
-
-NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_API_BASE_URL
-
-Backend .env must set:
-
-SUPABASE_URL, SUPABASE_JWKS_URL, SUPABASE_ISSUER, ALLOWED_ORIGINS
-
-Do not hardcode secrets or keys in code or prompts
-
-Code Patterns to Follow
-
-Use React Query hooks for data fetching; don’t fetch in useEffect without caching
-
-Centralize API headers in withAuthHeaders(); don’t duplicate token logic
-
-Use small UI primitives from UI.tsx instead of copy-pasting long Tailwind class strings
-
-For pagination: simple prev/next; query key includes params (e.g., ["posts", params])
-
-For forms: validate with zod; show field-level errors; block submit on invalid
-
-Testing (minimum bar)
-
-Frontend (RTL): test the New Idea form (validation, success redirect), and optimistic vote update behavior
-
-Backend (pytest): /api/v1/posts list (200), create (201 with valid token), 401 missing token, 403 RLS denial path
-
-No live network in tests; mock fetch/clients
-
-Commit & PR Discipline
-
-Conventional commits: feat:, fix:, test:, docs:, chore:, refactor:
-
-Keep diffs minimal; group by feature
-
-In PRs, reference the OpenAPI paths touched (e.g., “uses GET /api/v1/posts”)
-
-Verification Checklist (Cursor must self-check before finalizing)
-
- Uses Next.js App Router pages in /src/app with a centered layout
-
- Tailwind v4 is correctly wired (@tailwindcss/postcss, @import "tailwindcss")
-
- API calls come from openapi-fetch typed by docs/api/openapi.yaml; no untyped fetch
-
- React Query is used with a global QueryClientProvider
-
- Protected requests include Authorization: Bearer <token> via withAuthHeaders()
-
- Loading/empty/error states implemented on all data pages
-
- Optimistic voting with rollback is implemented
-
- No secrets in code or prompts; env vars used correctly
-
- Changes are minimal, focused, and follow naming/structure conventions
+RLS smoke: from the app, a non-creator cannot edit someone else’s idea (UI + Supabase error).
