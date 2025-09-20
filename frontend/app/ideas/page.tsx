@@ -20,7 +20,7 @@ export default function IdeasPage() {
   const [votingFor, setVotingFor] = React.useState<string | null>(null);
   const [voteError, setVoteError] = React.useState<string | null>(null);
   const [voteDelta, setVoteDelta] = React.useState<Record<string, { up: number; down: number }>>({});
-  const [commentPreview, setCommentPreview] = React.useState<Record<string, string>>({});
+  const [commentPreview, setCommentPreview] = React.useState<Record<string, { body: string; up_count: number; down_count: number; created_at: string; username: string | null }>>({});
   const [commentPreviewLoading, setCommentPreviewLoading] = React.useState(false);
   const [userVotes, setUserVotes] = React.useState<Record<string, 0 | 1 | -1>>({});
 
@@ -33,16 +33,22 @@ export default function IdeasPage() {
       const ids = data.map((p) => p.id);
       const { data: comments, error } = await supabase
         .from("comments")
-        .select("post_id, body, created_at")
+        .select("post_id, body, created_at, up_count, down_count, users:users!comments_author_id_fkey(username)")
         .in("post_id", ids)
         .eq("status", "published")
         .order("created_at", { ascending: false });
       if (cancelled) return;
       if (!error && comments) {
-        const firstByPost: Record<string, string> = {};
+        const firstByPost: Record<string, { body: string; up_count: number; down_count: number; created_at: string; username: string | null }> = {};
         for (const c of comments) {
           const pid = (c as any).post_id as string;
-          if (!firstByPost[pid]) firstByPost[pid] = (c as any).body as string;
+          if (!firstByPost[pid]) firstByPost[pid] = {
+            body: (c as any).body as string,
+            up_count: (c as any).up_count as number,
+            down_count: (c as any).down_count as number,
+            created_at: (c as any).created_at as string,
+            username: ((c as any).users?.username ?? null) as string | null,
+          };
         }
         setCommentPreview(firstByPost);
       } else {
@@ -149,6 +155,7 @@ export default function IdeasPage() {
               <li key={p.id} className="border-b border-gray-200 pb-3">
                 <div className="min-w-0">
                   <Link href={`/ideas/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
+                  <div className="text-xs text-gray-600">by {p.users?.username || 'user'}</div>
                   <p className="mt-1 text-sm text-gray-700 line-clamp-3">{p.body}</p>
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-4">
                     <button
@@ -174,7 +181,8 @@ export default function IdeasPage() {
                   ) : commentPreview[p.id] ? (
                     <div className="mt-2">
                       <div className="text-xs font-medium text-gray-700">Latest comment</div>
-                      <p className="mt-1 text-sm text-gray-800 line-clamp-3 whitespace-pre-wrap">{commentPreview[p.id]}</p>
+                      <p className="mt-1 text-sm text-gray-800 line-clamp-3 whitespace-pre-wrap">{commentPreview[p.id].body}</p>
+                      <div className="text-xs text-gray-600 mt-1">👍 {commentPreview[p.id].up_count} · 👎 {commentPreview[p.id].down_count} · by {commentPreview[p.id].username || 'user'} · {new Date(commentPreview[p.id].created_at).toLocaleString()}</div>
                       <Link href={`/ideas/${p.id}`} className="text-xs underline text-gray-700 mt-1 inline-block">See more</Link>
                     </div>
                   ) : null}

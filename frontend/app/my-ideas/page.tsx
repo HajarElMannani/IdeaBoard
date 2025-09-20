@@ -19,6 +19,10 @@ export default function MyIdeasPage() {
   const [commentsCount, setCommentsCount] = React.useState<Record<string, number>>({});
   const [error, setError] = React.useState<string | null>(null);
   const [loadingList, setLoadingList] = React.useState(true);
+  const [openCommentsFor, setOpenCommentsFor] = React.useState<string | null>(null);
+  const [commentsByPost, setCommentsByPost] = React.useState<Record<string, Array<{ id: string; body: string; created_at: string; up_count: number; down_count: number; author_id: string; users?: { username?: string | null } | null }>>>({});
+  const [commentsLoading, setCommentsLoading] = React.useState<string | null>(null);
+  const [commentsError, setCommentsError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -81,9 +85,53 @@ export default function MyIdeasPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <Link href={`/ideas/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
-                        <div className="mt-1 text-xs text-gray-600">
-                          👍 {p.up_count} · 👎 {p.down_count} · 💬 {commentsCount[p.id] ?? 0}
+                        <div className="mt-1 text-xs text-gray-600 flex items-center gap-3">
+                          <span>👍 {p.up_count}</span>
+                          <span>👎 {p.down_count}</span>
+                          <button
+                            type="button"
+                            className="underline"
+                            onClick={async () => {
+                              setCommentsError(null);
+                              if (openCommentsFor === p.id) { setOpenCommentsFor(null); return; }
+                              setOpenCommentsFor(p.id);
+                              if (!commentsByPost[p.id]) {
+                                setCommentsLoading(p.id);
+                                const { data, error } = await supabase
+                                  .from("comments")
+                                  .select("id, body, created_at, up_count, down_count, author_id, users:users!comments_author_id_fkey(username)")
+                                  .eq("post_id", p.id)
+                                  .eq("status", "published")
+                                  .order("created_at", { ascending: false })
+                                  .limit(10);
+                                if (error) setCommentsError(error.message);
+                                else setCommentsByPost((m) => ({ ...m, [p.id]: (data ?? []) as any }));
+                                setCommentsLoading(null);
+                              }
+                            }}
+                          >
+                            💬 {commentsCount[p.id] ?? 0}
+                          </button>
                         </div>
+                        {openCommentsFor === p.id && (
+                          <div className="mt-2">
+                            {commentsLoading === p.id && <div className="text-xs text-gray-600">Loading comments…</div>}
+                            {commentsError && <div className="text-xs text-red-600">{commentsError}</div>}
+                            {!commentsLoading && !commentsError && (
+                              <ul className="space-y-2">
+                                {(commentsByPost[p.id] ?? []).slice(0, 5).map((c) => (
+                                  <li key={c.id} className="text-sm whitespace-pre-wrap border-l pl-2">
+                                    <div className="text-gray-800">{c.body}</div>
+                                    <div className="text-xs text-gray-600 mt-1">👍 {c.up_count} · 👎 {c.down_count} · by {c.users?.username || (c.author_id === user?.id ? "you" : "user")} · {new Date(c.created_at).toLocaleString()}</div>
+                                  </li>
+                                ))}
+                                {(commentsByPost[p.id]?.length ?? 0) === 0 && (
+                                  <li className="text-sm text-gray-700">No comments yet.</li>
+                                )}
+                              </ul>
+                            )}
+                          </div>
+                        )}
                       </div>
                       <div className="shrink-0 flex items-center gap-3 text-xs">
                         <Link href={`/ideas/${p.id}/edit`} className="underline">Edit</Link>

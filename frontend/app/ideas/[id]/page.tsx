@@ -85,8 +85,11 @@ export default function IdeaDetailPage() {
             <ul className="space-y-3">
               {comments.map((c) => (
                 <li key={c.id} className="border-b border-gray-200 pb-3">
+                  <div className="text-xs text-gray-600 mb-1">by {c.users?.username || 'user'} · {new Date(c.created_at).toLocaleString()}</div>
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{c.body}</p>
-                  <div className="mt-1 text-xs text-gray-600">👍 {c.up_count} · 👎 {c.down_count}</div>
+                  <div className="mt-2">
+                    <VoteButton commentId={c.id} upCount={c.up_count} downCount={c.down_count} />
+                  </div>
                 </li>
               ))}
               {comments.length === 0 && <li className="text-sm text-gray-700">No comments yet.</li>}

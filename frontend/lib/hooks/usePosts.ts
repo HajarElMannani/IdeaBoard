@@ -10,6 +10,7 @@ export type Post = {
   up_count: number;
   down_count: number;
   created_at: string;
+  users?: { username?: string | null } | null;
 };
 
 export function usePosts(sort: "new" | "top" = "new", page = 1, pageSize = 10) {
@@ -25,7 +26,10 @@ export function usePosts(sort: "new" | "top" = "new", page = 1, pageSize = 10) {
       setError(null);
       const from = (page - 1) * pageSize;
       const to = from + pageSize - 1;
-      let query = supabase.from("posts").select("id,title,body,tags,up_count,down_count,created_at", { count: "exact" }).eq("status", "published");
+      let query = supabase
+        .from("posts")
+        .select("id,title,body,tags,up_count,down_count,created_at, users:users!posts_author_id_fkey(username)", { count: "exact" })
+        .eq("status", "published");
       if (sort === "new") query = query.order("created_at", { ascending: false });
       if (sort === "top") query = query.order("up_count", { ascending: false });
       const { data, count, error } = await query.range(from, to);

@@ -11,6 +11,7 @@ export type Comment = {
   created_at: string;
   up_count: number;
   down_count: number;
+  users?: { username?: string | null } | null;
 };
 
 export function useComments(postId: string, page = 1, pageSize = 10) {
@@ -28,7 +29,7 @@ export function useComments(postId: string, page = 1, pageSize = 10) {
       const to = from + pageSize - 1;
       const { data, count, error } = await supabase
         .from("comments")
-        .select("id,post_id,body,author_id,created_at,up_count,down_count", { count: "exact" })
+        .select("id,post_id,body,author_id,created_at,up_count,down_count, users:users!comments_author_id_fkey(username)", { count: "exact" })
         .eq("post_id", postId)
         .eq("status", "published")
         .order("created_at", { ascending: false })
