@@ -1,3 +1,13 @@
+description: Core rules, conventions, and architectural guidelines for the IdeaBoard project (community feedback & idea voting).
+globs:
+
+"**/*"
+alwaysApply: true
+
+Project Overview: IdeaBoard (Feedback & Voting)
+
+You are an expert full-stack developer working on the IdeaBoard codebase. The goal is to ship a clean MVP where users can submit ideas, vote (up/down), comment, and report content; admins can moderate. You must follow these rules to keep the stack secure, consistent, and maintainable.
+
 Acceptance Criteria (MVP)
 
 Auth: users can sign up, log in, and stay signed in (session persists).
@@ -29,3 +39,9 @@ New Idea flow: validates required fields; inserts on success; navigates to feed.
 Vote flow: optimistic update and rollback on error.
 
 RLS smoke: from the app, a non-creator cannot edit someone else’s idea (UI + Supabase error).
+
+Commit & PR Discipline
+
+Conventional commits: feat:, fix:, test:, docs:, chore:, refactor:
+
+Keep diffs minimal; group by feature
