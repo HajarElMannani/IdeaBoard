@@ -7,6 +7,7 @@ import * as React from "react";
 import { useSession } from "@/lib/hooks/useSession";
 import { createPost } from "@/lib/hooks/usePosts";
 import { useRouter } from "next/navigation";
+import { ensureUserRow } from "@/lib/user";
 
 export default function NewIdeaPage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function NewIdeaPage() {
           const tagsStr = String(fd.get("tags") || "").trim();
           const tags = tagsStr ? tagsStr.split(",").map((t) => t.trim()).filter(Boolean) : [];
           try {
+            await ensureUserRow();
             await createPost({ title, body, tags });
             router.push("/ideas");
           } catch (err: any) {

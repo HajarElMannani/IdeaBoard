@@ -8,10 +8,13 @@ import { supabase } from "@/lib/supabaseClient";
 import VoteButton from "@/components/VoteButton";
 import { useComments, addComment } from "@/lib/hooks/useComments";
 import { useSession } from "@/lib/hooks/useSession";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function IdeaDetailPage() {
   const params = useParams();
   const id = String(params?.id ?? "");
+  const router = useRouter();
   const { user } = useSession();
   const [post, setPost] = React.useState<any | null>(null);
   const [loading, setLoading] = React.useState(true);
@@ -25,7 +28,7 @@ export default function IdeaDetailPage() {
       setError(null);
       const { data, error } = await supabase
         .from("posts")
-        .select("id,title,body,tags,up_count,down_count,created_at")
+        .select("id,title,body,tags,up_count,down_count,created_at,author_id")
         .eq("id", id)
         .single();
       if (cancelled) return;
@@ -48,7 +51,26 @@ export default function IdeaDetailPage() {
             <p className="mt-3 text-gray-700 leading-relaxed whitespace-pre-wrap">{post.body}</p>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-gray-600">{(post.tags || []).join(", ")}</div>
-              <VoteButton postId={post.id} upCount={post.up_count} downCount={post.down_count} />
+              <div className="flex items-center gap-3">
+                {user?.id === post.author_id && (
+                  <>
+                    <Link href={`/ideas/${post.id}/edit`} className="text-sm underline">Edit</Link>
+                    <button
+                      type="button"
+                      className="text-sm text-red-600 underline"
+                      onClick={async () => {
+                        if (!confirm("Delete this idea?")) return;
+                        const { error } = await supabase.from("posts").delete().eq("id", post.id);
+                        if (!error) router.push("/ideas");
+                        else alert(error.message);
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </>
+                )}
+                <VoteButton postId={post.id} upCount={post.up_count} downCount={post.down_count} />
+              </div>
             </div>
           </>
         )}
@@ -75,11 +97,16 @@ export default function IdeaDetailPage() {
           <form className="space-y-2" onSubmit={async (e) => {
             e.preventDefault();
             if (!user || !id) return;
-            const fd = new FormData(e.currentTarget as HTMLFormElement);
+            const formEl = e.currentTarget as HTMLFormElement;
+            const fd = new FormData(formEl);
             const body = String(fd.get("body") || "").trim();
             if (!body) return;
-            await addComment(id, body);
-            (e.currentTarget as HTMLFormElement).reset();
+            try {
+              await addComment(id, body);
+              formEl.reset();
+            } catch (err: any) {
+              alert(err.message || "Failed to add comment");
+            }
           }}>
             <Textarea name="body" rows={4} placeholder="Write a comment" disabled={!user} />
             <div className="flex items-center justify-end">

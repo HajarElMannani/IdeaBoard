@@ -78,9 +78,28 @@ export default function MyIdeasPage() {
               <ul className="space-y-3">
                 {posts.map((p) => (
                   <li key={p.id} className="border-b border-gray-200 pb-3">
-                    <Link href={`/ideas/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
-                    <div className="mt-1 text-xs text-gray-600">
-                      👍 {p.up_count} · 👎 {p.down_count} · 💬 {commentsCount[p.id] ?? 0}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link href={`/ideas/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
+                        <div className="mt-1 text-xs text-gray-600">
+                          👍 {p.up_count} · 👎 {p.down_count} · 💬 {commentsCount[p.id] ?? 0}
+                        </div>
+                      </div>
+                      <div className="shrink-0 flex items-center gap-3 text-xs">
+                        <Link href={`/ideas/${p.id}/edit`} className="underline">Edit</Link>
+                        <button
+                          type="button"
+                          className="text-red-600 underline"
+                          onClick={async () => {
+                            if (!confirm("Delete this idea?")) return;
+                            const { error } = await supabase.from("posts").delete().eq("id", p.id);
+                            if (error) alert(error.message);
+                            else setPosts((arr) => arr.filter((x) => x.id !== p.id));
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </li>
                 ))}

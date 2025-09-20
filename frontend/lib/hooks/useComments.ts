@@ -1,6 +1,7 @@
 "use client";
 import * as React from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { ensureUserRow } from "@/lib/user";
 
 export type Comment = {
   id: string;
@@ -50,6 +51,7 @@ export function useComments(postId: string, page = 1, pageSize = 10) {
 export async function addComment(postId: string, body: string) {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) throw new Error("Not authenticated");
+  await ensureUserRow();
   const { error } = await supabase.from("comments").insert({
     post_id: postId,
     author_id: auth.user.id,
