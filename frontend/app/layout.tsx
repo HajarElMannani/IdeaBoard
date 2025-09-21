@@ -11,12 +11,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <header className="border-b bg-white/90 sticky top-0 z-40">
+      <body className="min-h-screen bg-gradient-to-b from-indigo-50 to-white">
+        <header className="sticky top-0 z-40 bg-indigo-500 text-white shadow">
           <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <Link href="/" className="text-xl font-semibold">IdeaBoard</Link>
-            <nav className="flex items-center gap-4 text-sm">
-              <Link href="/ideas">Ideas</Link>
+            <Link href="/" className="text-xl font-semibold text-white">IdeaBoard</Link>
+            <nav className="flex items-center gap-5 text-sm">
+              <Link href="/ideas" className="text-indigo-50 hover:text-white">Ideas</Link>
               <AuthNav />
             </nav>
           </div>

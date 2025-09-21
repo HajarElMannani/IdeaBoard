@@ -13,20 +13,47 @@ import { ensureUserRow } from "@/lib/user";
 import VoteButton from "@/components/VoteButton";
 import { formatDateTimeNoSeconds } from "@/lib/format";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function IdeasPage() {
   const [tab, setTab] = React.useState<"new" | "top">("new");
-  const { data, loading, error } = usePosts(tab, 1, 10);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const [search, setSearch] = React.useState("");
+  const [tagFilter, setTagFilter] = React.useState("");
+
+  // Initialize filters from URL on first render
+  React.useEffect(() => {
+    const q = searchParams.get("q") || "";
+    const t = searchParams.get("tag") || "";
+    setSearch(q);
+    setTagFilter(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist filters to URL (without full reload)
+  React.useEffect(() => {
+    const currentQ = searchParams.get("q") || "";
+    const currentTag = searchParams.get("tag") || "";
+    if (currentQ === search && currentTag === tagFilter) return;
+    const params = new URLSearchParams(searchParams.toString());
+    if (search) params.set("q", search); else params.delete("q");
+    if (tagFilter) params.set("tag", tagFilter); else params.delete("tag");
+    const qs = params.toString();
+    router.replace(`/ideas${qs ? `?${qs}` : ""}`);
+  }, [search, tagFilter, router, searchParams]);
+  const { data, loading, error } = usePosts(tab, 1, 10, { search, tag: tagFilter || undefined });
   const { user } = useSession();
   const [postingFor, setPostingFor] = React.useState<string | null>(null);
   const [postError, setPostError] = React.useState<string | null>(null);
   const [votingFor, setVotingFor] = React.useState<string | null>(null);
   const [voteError, setVoteError] = React.useState<string | null>(null);
-  const [voteDelta, setVoteDelta] = React.useState<Record<string, { up: number; down: number }>>({});
+  const [countsOverride, setCountsOverride] = React.useState<Record<string, { up_count: number; down_count: number }>>({});
   const [commentPreview, setCommentPreview] = React.useState<Record<string, { id: string; body: string; up_count: number; down_count: number; created_at: string; username: string | null }>>({});
   const [commentPreviewLoading, setCommentPreviewLoading] = React.useState(false);
   const [userVotes, setUserVotes] = React.useState<Record<string, 0 | 1 | -1>>({});
   const [loginOpen, setLoginOpen] = React.useState(false);
+  const [commentsCount, setCommentsCount] = React.useState<Record<string, number>>({});
 
   // Load 1 most recent comment per post (preview)
   React.useEffect(() => {
@@ -86,6 +113,26 @@ export default function IdeasPage() {
     return () => { cancelled = true; };
   }, [user, data]);
 
+  // Load comments count per post in the current page
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!data || data.length === 0) { setCommentsCount({}); return; }
+      const entries = await Promise.all(
+        data.map(async (p) => {
+          const { count } = await supabase
+            .from("comments")
+            .select("id", { count: "exact", head: true })
+            .eq("post_id", p.id)
+            .eq("status", "published");
+          return [p.id, count ?? 0] as const;
+        })
+      );
+      if (!cancelled) setCommentsCount(Object.fromEntries(entries));
+    })();
+    return () => { cancelled = true; };
+  }, [data]);
+
   async function vote(postId: string, value: 1 | -1) {
     if (!user) { setLoginOpen(true); return; }
     setVoteError(null);
@@ -103,16 +150,8 @@ export default function IdeasPage() {
       if (error) setVoteError(error.message);
       else {
         setUserVotes((m) => ({ ...m, [postId]: 0 }));
-        setVoteDelta((prev) => {
-          const curr = prev[postId] ?? { up: 0, down: 0 };
-          return {
-            ...prev,
-            [postId]: {
-              up: curr.up + (value === 1 ? -1 : 0),
-              down: curr.down + (value === -1 ? -1 : 0),
-            },
-          };
-        });
+        const { data } = await supabase.from("posts").select("up_count,down_count").eq("id", postId).maybeSingle();
+        if (data) setCountsOverride((m) => ({ ...m, [postId]: data as any }));
       }
     } else {
       // Upsert new/changed vote
@@ -123,15 +162,8 @@ export default function IdeasPage() {
       if (error) setVoteError(error.message);
       else {
         setUserVotes((m) => ({ ...m, [postId]: value }));
-        setVoteDelta((prev) => {
-          const curr = prev[postId] ?? { up: 0, down: 0 };
-          let up = curr.up;
-          let down = curr.down;
-          if (previous === 1 && value === -1) { up -= 1; down += 1; }
-          else if (previous === -1 && value === 1) { down -= 1; up += 1; }
-          else if (previous === 0) { if (value === 1) up += 1; else down += 1; }
-          return { ...prev, [postId]: { up, down } };
-        });
+        const { data } = await supabase.from("posts").select("up_count,down_count").eq("id", postId).maybeSingle();
+        if (data) setCountsOverride((m) => ({ ...m, [postId]: data as any }));
       }
     }
     setVotingFor(null);
@@ -155,13 +187,40 @@ export default function IdeasPage() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-end -mt-8">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList className="scale-90 origin-right">
-            <TabsTrigger value="new" className="text-xs px-2 py-1">New</TabsTrigger>
-            <TabsTrigger value="top" className="text-xs px-2 py-1">Top</TabsTrigger>
-          </TabsList>
-        </Tabs>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 -mt-8">
+        <div className="flex items-center gap-2 flex-1">
+          <input
+          type="text"
+          placeholder="Search ideas..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full md:w-72 border rounded-md px-3 py-2 text-sm"
+          />
+          <input
+          type="text"
+          placeholder="Filter by tag (press Enter)"
+          value={tagFilter}
+          onChange={(e) => setTagFilter(e.target.value)}
+          className="w-full md:w-56 border rounded-md px-3 py-2 text-sm"
+          />
+          {tagFilter && (
+            <button
+              type="button"
+              className="text-xs text-gray-600 underline"
+              onClick={() => setTagFilter("")}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <div className="flex items-center justify-end">
+          <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
+            <TabsList className="scale-90 origin-right">
+              <TabsTrigger value="new" className="text-xs px-2 py-1">New</TabsTrigger>
+              <TabsTrigger value="top" className="text-xs px-2 py-1">Top</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
       </div>
 
       <Card className="app-card">
@@ -172,9 +231,34 @@ export default function IdeasPage() {
             {data.map((p) => (
               <li key={p.id} className="border-b border-gray-200 pb-3">
                 <div className="min-w-0">
-                  <Link href={`/ideas/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
-                  <div className="text-xs text-gray-600">by {p.users?.username || 'user'} · {formatDateTimeNoSeconds(p.created_at)}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Link href={`/ideas/${p.id}`} className="font-semibold text-base md:text-lg hover:underline">{p.title}</Link>
+                        <span className="text-xs text-gray-600">by {p.users?.username || 'user'}</span>
+                      </div>
+                    </div>
+                  </div>
                   <p className="mt-1 text-sm text-gray-700 line-clamp-3">{p.body}</p>
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {Array.isArray(p.tags) && p.tags.slice(0, 6).map((tag, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="inline-block rounded-full bg-indigo-100 text-indigo-700 text-xs px-2 py-0.5 hover:bg-indigo-200"
+                          onClick={() => setTagFilter(String(tag))}
+                          title="Filter by tag"
+                        >
+                          {String(tag)}
+                        </button>
+                      ))}
+                      {Array.isArray(p.tags) && p.tags.length > 6 && (
+                        <span className="text-xs text-gray-500">+{p.tags.length - 6} more</span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-gray-500 whitespace-nowrap">{formatDateTimeNoSeconds(p.created_at)}</div>
+                  </div>
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-4">
                     <button
                       type="button"
@@ -182,7 +266,7 @@ export default function IdeasPage() {
                       onClick={() => vote(p.id, 1)}
                       disabled={votingFor === p.id}
                     >
-                      👍 {(voteDelta[p.id]?.up ?? 0) + p.up_count}
+                      👍 {(countsOverride[p.id]?.up_count ?? p.up_count)}
                     </button>
                     <button
                       type="button"
@@ -190,17 +274,18 @@ export default function IdeasPage() {
                       onClick={() => vote(p.id, -1)}
                       disabled={votingFor === p.id}
                     >
-                      👎 {(voteDelta[p.id]?.down ?? 0) + p.down_count}
+                      👎 {(countsOverride[p.id]?.down_count ?? p.down_count)}
                     </button>
+                    <Link href={`/ideas/${p.id}`} className="hover:underline">💬 {commentsCount[p.id] ?? 0}</Link>
                     {voteError && <span className="text-red-600">{voteError}</span>}
                   </div>
                   {commentPreviewLoading ? (
                     <div className="mt-2 text-xs text-gray-600">Loading comments…</div>
                   ) : commentPreview[p.id] ? (
-                    <div className="mt-2">
-                      <div className="text-xs font-medium text-gray-700">Latest comment</div>
+                    <div className="mt-2 pl-3 pr-2 py-2 border-l-2 border-indigo-200 bg-indigo-50/50 rounded-sm">
+                      <div className="text-xs font-medium text-indigo-800">Latest comment</div>
                       <p className="mt-1 text-sm text-gray-800 line-clamp-3 whitespace-pre-wrap">{commentPreview[p.id].body}</p>
-                      <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+                      <div className="text-xs text-gray-700 mt-2 flex items-center gap-3">
                         <VoteButton
                           commentId={commentPreview[p.id].id}
                           upCount={commentPreview[p.id].up_count}

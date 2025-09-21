@@ -13,7 +13,12 @@ export type Post = {
   users?: { username?: string | null } | null;
 };
 
-export function usePosts(sort: "new" | "top" = "new", page = 1, pageSize = 10) {
+export function usePosts(
+  sort: "new" | "top" = "new",
+  page = 1,
+  pageSize = 10,
+  opts?: { search?: string; tag?: string }
+) {
   const [data, setData] = React.useState<Post[]>([]);
   const [count, setCount] = React.useState<number>(0);
   const [loading, setLoading] = React.useState(true);
@@ -30,6 +35,14 @@ export function usePosts(sort: "new" | "top" = "new", page = 1, pageSize = 10) {
         .from("posts")
         .select("id,title,body,tags,up_count,down_count,created_at, users:users!posts_author_id_fkey(username)", { count: "exact" })
         .eq("status", "published");
+      if (opts?.tag) {
+        query = query.contains("tags", [opts.tag]);
+      }
+      if (opts?.search) {
+        // Use ILIKE on title/body for simplicity (tsv exists if you want to switch to text search)
+        const term = `%${opts.search}%`;
+        query = query.or(`title.ilike.${term},body.ilike.${term}`);
+      }
       if (sort === "new") query = query.order("created_at", { ascending: false });
       if (sort === "top") query = query.order("up_count", { ascending: false });
       const { data, count, error } = await query.range(from, to);
@@ -43,7 +56,7 @@ export function usePosts(sort: "new" | "top" = "new", page = 1, pageSize = 10) {
     }
     load();
     return () => { cancelled = true; };
-  }, [sort, page, pageSize]);
+  }, [sort, page, pageSize, opts?.search, opts?.tag]);
 
   return { data, count, loading, error };
 }

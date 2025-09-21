@@ -53,7 +53,8 @@ export default function IdeaDetailPage() {
             <p className="mt-3 text-gray-700 leading-relaxed whitespace-pre-wrap">{post.body}</p>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-gray-600">{(post.tags || []).join(", ")}</div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 text-sm text-gray-600">
+                <span>💬 {Array.isArray(comments) ? comments.length : 0}</span>
                 {user?.id === post.author_id && (
                   <>
                     <Link href={`/ideas/${post.id}/edit`} className="text-sm underline">Edit</Link>

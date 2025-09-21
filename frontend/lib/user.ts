@@ -5,10 +5,15 @@ export async function ensureUserRow() {
   const user = auth.user;
   if (!user) return;
   const username = (user.user_metadata as any)?.username || null;
-  // Upsert minimal user record so FK constraints on posts/comments pass, and store username if available
-  await supabase
-    .from("users")
-    .upsert({ id: user.id, username }, { onConflict: "id", returning: "minimal" });
+  // Prefer a SECURITY DEFINER RPC to bypass RLS cleanly if present
+  try {
+    const { error } = await supabase.rpc("ensure_user_exists", {
+      p_uid: user.id,
+      p_username: username,
+    });
+    // Always return; if RPC fails, we do NOT attempt a direct table write to avoid 403s
+    return;
+  } catch (_) {}
 }
 
 

@@ -10,14 +10,21 @@ type Props = {
   upCount: number;
   downCount: number;
   onRequireLogin?: () => void;
+  variant?: "button" | "thumbs";
 };
 
-export function VoteButton({ postId, commentId, upCount, downCount, onRequireLogin }: Props) {
+export function VoteButton({ postId, commentId, upCount, downCount, onRequireLogin, variant = "button" }: Props) {
   const [up, setUp] = React.useState(upCount);
   const [down, setDown] = React.useState(downCount);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [userVote, setUserVote] = React.useState<0 | 1 | -1>(0);
+
+  // Keep counts in sync with parent updates
+  React.useEffect(() => {
+    setUp(upCount);
+    setDown(downCount);
+  }, [upCount, downCount]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -61,9 +68,15 @@ export function VoteButton({ postId, commentId, upCount, downCount, onRequireLog
         .eq(targetColumn, targetId);
       if (error) setError(error.message);
       else {
-        if (value === 1) setUp((v) => Math.max(0, v - 1));
-        else setDown((v) => Math.max(0, v - 1));
         setUserVote(0);
+        // Refresh counts from DB (avoid double optimistic + trigger)
+        if (postId) {
+          const { data } = await supabase.from("posts").select("up_count,down_count").eq("id", postId).maybeSingle();
+          if (data) { setUp((data as any).up_count ?? 0); setDown((data as any).down_count ?? 0); }
+        } else if (commentId) {
+          const { data } = await supabase.from("comments").select("up_count,down_count").eq("id", commentId).maybeSingle();
+          if (data) { setUp((data as any).up_count ?? 0); setDown((data as any).down_count ?? 0); }
+        }
       }
     } else {
       const payload: any = { user_id: auth.user.id, value };
@@ -73,17 +86,15 @@ export function VoteButton({ postId, commentId, upCount, downCount, onRequireLog
         .upsert(payload, { onConflict: postId ? "user_id,post_id" : "user_id,comment_id" });
       if (error) setError(error.message);
       else {
-        if (userVote === 1 && value === -1) {
-          setUp((v) => Math.max(0, v - 1));
-          setDown((v) => v + 1);
-        } else if (userVote === -1 && value === 1) {
-          setDown((v) => Math.max(0, v - 1));
-          setUp((v) => v + 1);
-        } else if (userVote === 0) {
-          if (value === 1) setUp((v) => v + 1);
-          else setDown((v) => v + 1);
-        }
         setUserVote(value);
+        // Refresh counts from DB
+        if (postId) {
+          const { data } = await supabase.from("posts").select("up_count,down_count").eq("id", postId).maybeSingle();
+          if (data) { setUp((data as any).up_count ?? 0); setDown((data as any).down_count ?? 0); }
+        } else if (commentId) {
+          const { data } = await supabase.from("comments").select("up_count,down_count").eq("id", commentId).maybeSingle();
+          if (data) { setUp((data as any).up_count ?? 0); setDown((data as any).down_count ?? 0); }
+        }
       }
     }
     setLoading(false);
@@ -91,7 +102,7 @@ export function VoteButton({ postId, commentId, upCount, downCount, onRequireLog
 
   return (
     <div className="flex items-center gap-2">
-      {commentId ? (
+      {commentId || variant === "thumbs" ? (
         <>
           <button
             type="button"
