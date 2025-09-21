@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { useSession } from "@/lib/hooks/useSession";
 import { supabase } from "@/lib/supabaseClient";
 import VoteButton from "@/components/VoteButton";
+import { formatDateTimeNoSeconds } from "@/lib/format";
+import { Button } from "@/components/ui/button";
 
 type MyPost = {
   id: string;
@@ -67,9 +69,16 @@ export default function MyIdeasPage() {
 
   return (
     <section className="space-y-6 md:space-y-8 max-w-3xl mx-auto">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">My ideas</h1>
-        <p className="mt-1 text-sm text-gray-600">Your ideas with votes and comments.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">My ideas</h1>
+          <p className="mt-1 text-sm text-gray-600">Your ideas with votes and comments.</p>
+        </div>
+        {user && (
+          <Link href="/ideas/new">
+            <Button variant="solid" size="sm">Create new idea</Button>
+          </Link>
+        )}
       </div>
 
       <Card className="app-card">
@@ -86,6 +95,7 @@ export default function MyIdeasPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <Link href={`/ideas/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
+                        <div className="text-xs text-gray-600">by you · {formatDateTimeNoSeconds(p.created_at)}</div>
                         <div className="mt-1 text-xs text-gray-600 flex items-center gap-3">
                           <span>👍 {p.up_count}</span>
                           <span>👎 {p.down_count}</span>

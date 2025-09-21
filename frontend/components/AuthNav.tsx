@@ -10,8 +10,8 @@ export default function AuthNav() {
     return (
       <>
         <Link href="/ideas/new">New</Link>
-        <Link href="/profile">Profile</Link>
         <Link href="/my-ideas">My ideas</Link>
+        <Link href="/profile">Profile</Link>
         <button
           type="button"
           className="text-gray-800 hover:underline"

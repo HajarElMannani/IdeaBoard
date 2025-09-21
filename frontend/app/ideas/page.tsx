@@ -11,6 +11,7 @@ import { addComment } from "@/lib/hooks/useComments";
 import { supabase } from "@/lib/supabaseClient";
 import { ensureUserRow } from "@/lib/user";
 import VoteButton from "@/components/VoteButton";
+import { formatDateTimeNoSeconds } from "@/lib/format";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function IdeasPage() {
@@ -142,10 +143,23 @@ export default function IdeasPage() {
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">Ideas</h1>
           <p className="mt-1 text-sm text-gray-600">Browse new and top ideas</p>
         </div>
+        <Button
+          variant="solid"
+          size="sm"
+          onClick={() => {
+            if (!user) { setLoginOpen(true); return; }
+            window.location.href = "/ideas/new";
+          }}
+        >
+          Create new idea
+        </Button>
+      </div>
+
+      <div className="flex items-center justify-end -mt-8">
         <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-          <TabsList>
-            <TabsTrigger value="new">New</TabsTrigger>
-            <TabsTrigger value="top">Top</TabsTrigger>
+          <TabsList className="scale-90 origin-right">
+            <TabsTrigger value="new" className="text-xs px-2 py-1">New</TabsTrigger>
+            <TabsTrigger value="top" className="text-xs px-2 py-1">Top</TabsTrigger>
           </TabsList>
         </Tabs>
       </div>
@@ -159,7 +173,7 @@ export default function IdeasPage() {
               <li key={p.id} className="border-b border-gray-200 pb-3">
                 <div className="min-w-0">
                   <Link href={`/ideas/${p.id}`} className="font-medium hover:underline">{p.title}</Link>
-                  <div className="text-xs text-gray-600">by {p.users?.username || 'user'}</div>
+                  <div className="text-xs text-gray-600">by {p.users?.username || 'user'} · {formatDateTimeNoSeconds(p.created_at)}</div>
                   <p className="mt-1 text-sm text-gray-700 line-clamp-3">{p.body}</p>
                   <div className="mt-2 text-xs text-gray-600 flex items-center gap-4">
                     <button
@@ -193,7 +207,7 @@ export default function IdeasPage() {
                           downCount={commentPreview[p.id].down_count}
                           onRequireLogin={() => setLoginOpen(true)}
                         />
-                        <div>by {commentPreview[p.id].username || 'user'} · {new Date(commentPreview[p.id].created_at).toLocaleString()}</div>
+                        <div>by {commentPreview[p.id].username || 'user'} · {formatDateTimeNoSeconds(commentPreview[p.id].created_at)}</div>
                       </div>
                       <Link href={`/ideas/${p.id}`} className="text-xs underline text-gray-700 mt-1 inline-block">See more</Link>
                     </div>
@@ -201,7 +215,7 @@ export default function IdeasPage() {
                 </div>
                 {(
                   <form
-                    className="mt-3 space-y-2"
+                    className="mt-2 space-y-1"
                     onSubmit={async (e) => {
                       e.preventDefault();
                       if (!user) { setLoginOpen(true); return; }
@@ -221,7 +235,7 @@ export default function IdeasPage() {
                       }
                     }}
                   >
-                    <Textarea name="body" rows={3} placeholder="Add a comment" />
+                    <Textarea name="body" rows={1} className="text-sm py-1 resize-none" placeholder="Add a comment" />
                     <div className="flex items-center justify-end gap-3">
                       {postError && <span className="text-xs text-red-600">{postError}</span>}
                       <Button variant="solid" size="sm" disabled={postingFor === p.id}>Comment</Button>
@@ -235,15 +249,7 @@ export default function IdeasPage() {
         )}
       </Card>
 
-      <div className="flex items-center gap-3">
-        <Link
-          href={user ? "/ideas/new" : "#"}
-          onClick={(e) => { if (!user) { e.preventDefault(); setLoginOpen(true); } }}
-          className="underline text-sm"
-        >
-          Create new idea
-        </Link>
-      </div>
+      
 
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
         <DialogContent>
@@ -254,6 +260,7 @@ export default function IdeasPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
+            <button type="button" className="text-sm" onClick={() => setLoginOpen(false)}>Cancel</button>
             <Link href="/auth" className="underline text-sm">Go to login</Link>
             <Link href="/auth" className="underline text-sm">Create an account</Link>
           </DialogFooter>

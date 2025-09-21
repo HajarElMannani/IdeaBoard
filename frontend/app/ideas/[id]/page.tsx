@@ -10,6 +10,7 @@ import { useComments, addComment } from "@/lib/hooks/useComments";
 import { useSession } from "@/lib/hooks/useSession";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { formatDateTimeNoSeconds } from "@/lib/format";
 
 export default function IdeaDetailPage() {
   const params = useParams();
@@ -48,6 +49,7 @@ export default function IdeaDetailPage() {
         {post && (
           <>
             <h1 className="text-2xl md:text-3xl font-semibold">{post.title}</h1>
+            <div className="text-xs text-gray-600 mt-1">by {/* username hidden here unless joined; fallback */} {post.author_id ? "user" : "user"} · {formatDateTimeNoSeconds(post.created_at)}</div>
             <p className="mt-3 text-gray-700 leading-relaxed whitespace-pre-wrap">{post.body}</p>
             <div className="mt-4 flex items-center justify-between">
               <div className="text-sm text-gray-600">{(post.tags || []).join(", ")}</div>
@@ -88,7 +90,7 @@ export default function IdeaDetailPage() {
                   <p className="text-sm text-gray-800 whitespace-pre-wrap">{c.body}</p>
                   <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
                     <VoteButton commentId={c.id} upCount={c.up_count} downCount={c.down_count} />
-                    <div>by {c.users?.username || 'user'} · {new Date(c.created_at).toLocaleString()}</div>
+                    <div>by {c.users?.username || 'user'} · {formatDateTimeNoSeconds(c.created_at)}</div>
                   </div>
                 </li>
               ))}
