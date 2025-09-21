@@ -9,9 +9,10 @@ type Props = {
   commentId?: string;
   upCount: number;
   downCount: number;
+  onRequireLogin?: () => void;
 };
 
-export function VoteButton({ postId, commentId, upCount, downCount }: Props) {
+export function VoteButton({ postId, commentId, upCount, downCount, onRequireLogin }: Props) {
   const [up, setUp] = React.useState(upCount);
   const [down, setDown] = React.useState(downCount);
   const [loading, setLoading] = React.useState(false);
@@ -42,7 +43,12 @@ export function VoteButton({ postId, commentId, upCount, downCount }: Props) {
     setLoading(true);
     setError(null);
     const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) { setError("Please log in to vote"); setLoading(false); return; }
+    if (!auth.user) {
+      if (onRequireLogin) onRequireLogin();
+      else setError("Please log in to vote");
+      setLoading(false);
+      return;
+    }
     await ensureUserRow();
     const targetColumn = postId ? "post_id" : "comment_id";
     const targetId = postId ?? commentId!;
@@ -85,8 +91,35 @@ export function VoteButton({ postId, commentId, upCount, downCount }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <Button size="sm" disabled={loading} onClick={() => vote(1)}>{userVote === 1 ? "✅⬆" : "⬆"} {up}</Button>
-      <Button size="sm" disabled={loading} onClick={() => vote(-1)}>{userVote === -1 ? "✅⬇" : "⬇"} {down}</Button>
+      {commentId ? (
+        <>
+          <button
+            type="button"
+            className="text-xs hover:underline disabled:opacity-50"
+            disabled={loading}
+            onClick={() => vote(1)}
+          >
+            👍 {up}
+          </button>
+          <button
+            type="button"
+            className="text-xs hover:underline disabled:opacity-50"
+            disabled={loading}
+            onClick={() => vote(-1)}
+          >
+            👎 {down}
+          </button>
+        </>
+      ) : (
+        <>
+          <Button size="sm" disabled={loading} onClick={() => vote(1)}>
+            {userVote === 1 ? "✅⬆" : "⬆"} {up}
+          </Button>
+          <Button size="sm" disabled={loading} onClick={() => vote(-1)}>
+            {userVote === -1 ? "✅⬇" : "⬇"} {down}
+          </Button>
+        </>
+      )}
       {error && <span className="text-xs text-red-600">{error}</span>}
     </div>
   );

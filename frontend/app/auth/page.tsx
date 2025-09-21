@@ -4,12 +4,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabaseClient";
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 
 export default function AuthPage() {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState<string | null>(null);
-  const [tab, setTab] = React.useState<"login" | "register">("login");
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get("tab") === "register" ? "register" : "login") as "login" | "register";
+  const [tab, setTab] = React.useState<"login" | "register">(initialTab);
+
+  React.useEffect(() => {
+    const t = searchParams.get("tab");
+    if (t === "login" || t === "register") setTab(t);
+  }, [searchParams]);
 
   async function handleLogin(formData: FormData) {
     setLoading(true);

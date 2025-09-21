@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { useSession } from "@/lib/hooks/useSession";
 import { supabase } from "@/lib/supabaseClient";
+import VoteButton from "@/components/VoteButton";
 
 type MyPost = {
   id: string;
@@ -122,7 +123,10 @@ export default function MyIdeasPage() {
                                 {(commentsByPost[p.id] ?? []).slice(0, 5).map((c) => (
                                   <li key={c.id} className="text-sm whitespace-pre-wrap border-l pl-2">
                                     <div className="text-gray-800">{c.body}</div>
-                                    <div className="text-xs text-gray-600 mt-1">👍 {c.up_count} · 👎 {c.down_count} · by {c.users?.username || (c.author_id === user?.id ? "you" : "user")} · {new Date(c.created_at).toLocaleString()}</div>
+                                    <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+                                      <VoteButton commentId={c.id} upCount={c.up_count} downCount={c.down_count} />
+                                      <div>by {c.users?.username || (c.author_id === user?.id ? "you" : "user")} · {new Date(c.created_at).toLocaleString()}</div>
+                                    </div>
                                   </li>
                                 ))}
                                 {(commentsByPost[p.id]?.length ?? 0) === 0 && (

@@ -9,6 +9,8 @@ export default function AuthNav() {
   if (user) {
     return (
       <>
+        <Link href="/ideas/new">New</Link>
+        <Link href="/profile">Profile</Link>
         <Link href="/my-ideas">My ideas</Link>
         <button
           type="button"
@@ -20,7 +22,12 @@ export default function AuthNav() {
       </>
     );
   }
-  return <Link href="/auth">Log in</Link>;
+  return (
+    <>
+      <Link href="/auth">Log in</Link>
+      <Link href="/auth?tab=register">Sign up</Link>
+    </>
+  );
 }
 
 

@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { addComment } from "@/lib/hooks/useComments";
 import { supabase } from "@/lib/supabaseClient";
 import { ensureUserRow } from "@/lib/user";
+import VoteButton from "@/components/VoteButton";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 export default function IdeasPage() {
   const [tab, setTab] = React.useState<"new" | "top">("new");
@@ -20,9 +22,10 @@ export default function IdeasPage() {
   const [votingFor, setVotingFor] = React.useState<string | null>(null);
   const [voteError, setVoteError] = React.useState<string | null>(null);
   const [voteDelta, setVoteDelta] = React.useState<Record<string, { up: number; down: number }>>({});
-  const [commentPreview, setCommentPreview] = React.useState<Record<string, { body: string; up_count: number; down_count: number; created_at: string; username: string | null }>>({});
+  const [commentPreview, setCommentPreview] = React.useState<Record<string, { id: string; body: string; up_count: number; down_count: number; created_at: string; username: string | null }>>({});
   const [commentPreviewLoading, setCommentPreviewLoading] = React.useState(false);
   const [userVotes, setUserVotes] = React.useState<Record<string, 0 | 1 | -1>>({});
+  const [loginOpen, setLoginOpen] = React.useState(false);
 
   // Load 1 most recent comment per post (preview)
   React.useEffect(() => {
@@ -33,16 +36,17 @@ export default function IdeasPage() {
       const ids = data.map((p) => p.id);
       const { data: comments, error } = await supabase
         .from("comments")
-        .select("post_id, body, created_at, up_count, down_count, users:users!comments_author_id_fkey(username)")
+        .select("id, post_id, body, created_at, up_count, down_count, users:users!comments_author_id_fkey(username)")
         .in("post_id", ids)
         .eq("status", "published")
         .order("created_at", { ascending: false });
       if (cancelled) return;
       if (!error && comments) {
-        const firstByPost: Record<string, { body: string; up_count: number; down_count: number; created_at: string; username: string | null }> = {};
+        const firstByPost: Record<string, { id: string; body: string; up_count: number; down_count: number; created_at: string; username: string | null }> = {};
         for (const c of comments) {
           const pid = (c as any).post_id as string;
           if (!firstByPost[pid]) firstByPost[pid] = {
+            id: (c as any).id as string,
             body: (c as any).body as string,
             up_count: (c as any).up_count as number,
             down_count: (c as any).down_count as number,
@@ -82,7 +86,7 @@ export default function IdeasPage() {
   }, [user, data]);
 
   async function vote(postId: string, value: 1 | -1) {
-    if (!user) { setVoteError("Please log in to vote"); return; }
+    if (!user) { setLoginOpen(true); return; }
     setVoteError(null);
     setVotingFor(postId);
     await ensureUserRow();
@@ -162,7 +166,7 @@ export default function IdeasPage() {
                       type="button"
                       className="hover:underline disabled:opacity-50"
                       onClick={() => vote(p.id, 1)}
-                      disabled={!user || votingFor === p.id}
+                      disabled={votingFor === p.id}
                     >
                       👍 {(voteDelta[p.id]?.up ?? 0) + p.up_count}
                     </button>
@@ -170,7 +174,7 @@ export default function IdeasPage() {
                       type="button"
                       className="hover:underline disabled:opacity-50"
                       onClick={() => vote(p.id, -1)}
-                      disabled={!user || votingFor === p.id}
+                      disabled={votingFor === p.id}
                     >
                       👎 {(voteDelta[p.id]?.down ?? 0) + p.down_count}
                     </button>
@@ -182,16 +186,25 @@ export default function IdeasPage() {
                     <div className="mt-2">
                       <div className="text-xs font-medium text-gray-700">Latest comment</div>
                       <p className="mt-1 text-sm text-gray-800 line-clamp-3 whitespace-pre-wrap">{commentPreview[p.id].body}</p>
-                      <div className="text-xs text-gray-600 mt-1">👍 {commentPreview[p.id].up_count} · 👎 {commentPreview[p.id].down_count} · by {commentPreview[p.id].username || 'user'} · {new Date(commentPreview[p.id].created_at).toLocaleString()}</div>
+                      <div className="text-xs text-gray-600 mt-2 flex items-center gap-3">
+                        <VoteButton
+                          commentId={commentPreview[p.id].id}
+                          upCount={commentPreview[p.id].up_count}
+                          downCount={commentPreview[p.id].down_count}
+                          onRequireLogin={() => setLoginOpen(true)}
+                        />
+                        <div>by {commentPreview[p.id].username || 'user'} · {new Date(commentPreview[p.id].created_at).toLocaleString()}</div>
+                      </div>
                       <Link href={`/ideas/${p.id}`} className="text-xs underline text-gray-700 mt-1 inline-block">See more</Link>
                     </div>
                   ) : null}
                 </div>
-                {user && (
+                {(
                   <form
                     className="mt-3 space-y-2"
                     onSubmit={async (e) => {
                       e.preventDefault();
+                      if (!user) { setLoginOpen(true); return; }
                       setPostError(null);
                       setPostingFor(p.id);
                       const formEl = e.currentTarget as HTMLFormElement;
@@ -223,8 +236,29 @@ export default function IdeasPage() {
       </Card>
 
       <div className="flex items-center gap-3">
-        <Link href="/ideas/new" className="underline text-sm">Create new idea</Link>
+        <Link
+          href={user ? "/ideas/new" : "#"}
+          onClick={(e) => { if (!user) { e.preventDefault(); setLoginOpen(true); } }}
+          className="underline text-sm"
+        >
+          Create new idea
+        </Link>
       </div>
+
+      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sign in required</DialogTitle>
+            <DialogDescription>
+              Please log in or register to vote, comment, or create an idea.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Link href="/auth" className="underline text-sm">Go to login</Link>
+            <Link href="/auth" className="underline text-sm">Create an account</Link>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
