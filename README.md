@@ -90,3 +90,10 @@ Tables: `users`, `posts`, `comments`, `votes` with counters (`up_count`, `down_c
 - Optional backend service (FastAPI) for server-only workflows and webhooks
 ---
 
+## screenshots
+![Homepage screenshot] (assets/Homepage screenshot.PNG)
+![Ideas page] (assets/Ideas page.PNG)
+![Coderabbit for review] (assets/Coderabbit for review.PNG)
+![prompting example] (assets/prompting example.PNG)
+![prompting example giving context] (assets/prompting example giving context.PNG)
+![Resolving Coderabbit comments] (assets/Resolving Coderabbit comments.PNG)
