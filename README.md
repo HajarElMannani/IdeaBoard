@@ -76,4 +76,17 @@ Tables: `users`, `posts`, `comments`, `votes` with counters (`up_count`, `down_c
 - Human review for auth flows and database interactions.
 
 ---
+## 🔭 Future Enhancements
+- Admin moderation dashboard (approve/archive, retag, merge duplicates)
+- Role-based access control and RLS policies; versioned schema migrations
+- Realtime updates for votes/comments via Supabase Realtime
+- Email notifications and weekly digests
+- OAuth providers (Google, GitHub) in addition to email/password
+- Rate limiting, spam protection, and abuse reporting
+- File uploads for idea attachments (Supabase Storage)
+- Infinite scroll and better caching; pagination on comments
+- Internationalization (i18n) and accessibility audit (a11y)
+- Analytics (privacy-friendly) for usage insights
+- Optional backend service (FastAPI) for server-only workflows and webhooks
+---
 
