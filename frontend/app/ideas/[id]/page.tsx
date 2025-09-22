@@ -41,6 +41,31 @@ export default function IdeaDetailPage() {
     return () => { cancelled = true; };
   }, [id]);
 
+  // Realtime: update post counts and live comments for this idea
+  React.useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`idea-detail-${id}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "posts" },
+        (payload: any) => {
+          const row = payload.new as any;
+          if (row?.id !== id) return;
+          setPost((p: any) => p ? {
+            ...p,
+            up_count: row.up_count ?? p.up_count,
+            down_count: row.down_count ?? p.down_count,
+            title: row.title ?? p.title,
+            body: row.body ?? p.body,
+            tags: Array.isArray(row.tags) ? row.tags : p.tags,
+          } : p);
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id]);
+
   return (
     <div className="max-w-2xl mx-auto space-y-6 md:space-y-8">
       <Card className="app-card">

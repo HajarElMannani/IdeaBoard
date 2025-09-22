@@ -28,8 +28,8 @@ export default function AuthPage() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) setError(error.message);
     else {
-      // Redirect to My ideas after login
-      window.location.href = "/my-ideas";
+      // Redirect to Ideas after login
+      window.location.href = "/ideas";
     }
     setLoading(false);
   }

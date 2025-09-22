@@ -113,6 +113,61 @@ export default function IdeasPage() {
     return () => { cancelled = true; };
   }, [user, data]);
 
+  // Realtime: update preview, counts, and user vote selection when comments/votes change
+  React.useEffect(() => {
+    const postsChannel = supabase
+      .channel("ideas-page-posts")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "posts" },
+        async (payload: any) => {
+          const row = payload.new as any;
+          if (!row?.id) return;
+          // Refresh counts override for the updated post
+          const { data } = await supabase.from("posts").select("up_count,down_count").eq("id", row.id).maybeSingle();
+          if (data) setCountsOverride((m) => ({ ...m, [row.id]: data as any }));
+        }
+      )
+      .subscribe();
+
+    const commentsChannel = supabase
+      .channel("ideas-page-comments")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments" },
+        (payload: any) => {
+          const row = payload.new as any;
+          if (!row?.post_id) return;
+          // bump comments count for the related post
+          setCommentsCount((m) => ({ ...m, [row.post_id]: (m[row.post_id] ?? 0) + 1 }));
+          // if this is the newest, update preview
+          setCommentPreview((prev) => {
+            const existing = prev[row.post_id];
+            if (!existing || (row.created_at > existing.created_at)) {
+              return {
+                ...prev,
+                [row.post_id]: {
+                  id: row.id,
+                  body: row.body,
+                  up_count: row.up_count ?? 0,
+                  down_count: row.down_count ?? 0,
+                  created_at: row.created_at,
+                  username: existing?.username ?? null,
+                },
+              };
+            }
+            return prev;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(postsChannel);
+      supabase.removeChannel(commentsChannel);
+    };
+  }, []);
+
   // Load comments count per post in the current page
   React.useEffect(() => {
     let cancelled = false;

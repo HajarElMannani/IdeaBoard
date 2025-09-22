@@ -37,7 +37,21 @@ export function useComments(postId: string, page = 1, pageSize = 10) {
       if (cancelled) return;
       if (error) setError(error.message);
       else {
-        setData(data ?? []);
+        const mapped: Comment[] = (data ?? []).map((r: any) => ({
+          id: r.id,
+          post_id: r.post_id,
+          body: r.body,
+          author_id: r.author_id,
+          created_at: r.created_at,
+          up_count: r.up_count ?? 0,
+          down_count: r.down_count ?? 0,
+          users: r.users
+            ? (Array.isArray(r.users)
+                ? (r.users[0] ? { username: r.users[0]?.username ?? null } : null)
+                : { username: (r.users as any)?.username ?? null })
+            : null,
+        }));
+        setData(mapped);
         setCount(count ?? 0);
       }
       setLoading(false);
@@ -45,6 +59,86 @@ export function useComments(postId: string, page = 1, pageSize = 10) {
     if (postId) load();
     return () => { cancelled = true; };
   }, [postId, page, pageSize]);
+
+  // Realtime updates for comments on this post
+  React.useEffect(() => {
+    if (!postId) return;
+    const channel = supabase
+      .channel(`comments-realtime-${postId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "comments" },
+        async (payload: any) => {
+          const row = payload.new as any;
+          if (!row || row.post_id !== postId) return;
+          if (row.status && row.status !== "published") return;
+          let username: string | null = null;
+          try {
+            const { data: userRow } = await supabase
+              .from("users")
+              .select("username")
+              .eq("id", row.author_id)
+              .maybeSingle();
+            if (userRow) username = (userRow as any).username ?? null;
+          } catch (_e) {
+            // ignore lookup errors; username will be null
+          }
+          setData((prev) => {
+            if (prev.some((c) => c.id === row.id)) return prev;
+            return [{
+              id: row.id,
+              post_id: row.post_id,
+              body: row.body,
+              author_id: row.author_id,
+              created_at: row.created_at,
+              up_count: row.up_count ?? 0,
+              down_count: row.down_count ?? 0,
+              users: username !== null ? { username } : null,
+            }, ...prev];
+          });
+          setCount((n) => n + 1);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "comments" },
+        async (payload: any) => {
+          const row = payload.new as any;
+          if (!row || row.post_id !== postId) return;
+          let username: string | null = null;
+          try {
+            const { data: userRow } = await supabase
+              .from("users")
+              .select("username")
+              .eq("id", row.author_id)
+              .maybeSingle();
+            if (userRow) username = (userRow as any).username ?? null;
+          } catch (_e) {}
+          setData((prev) => prev.map((c) => c.id === row.id ? {
+            ...c,
+            body: row.body ?? c.body,
+            up_count: row.up_count ?? c.up_count,
+            down_count: row.down_count ?? c.down_count,
+            users: username !== null ? { username } : c.users ?? null,
+          } : c));
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "comments" },
+        (payload: any) => {
+          const row = payload.old as any;
+          if (!row || row.post_id !== postId) return;
+          setData((prev) => prev.filter((c) => c.id !== row.id));
+          setCount((n) => Math.max(0, n - 1));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [postId]);
 
   return { data, count, loading, error };
 }
